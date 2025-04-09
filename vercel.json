@@ -5,8 +5,7 @@
       "destination": "/index.html"
     }
   ],
-  "buildCommand": "cd chat-app && npm install && npm run build",
-  "outputDirectory": "chat-app/dist",
-  "framework": "vite",
-  "regions": ["iad1"]
-}
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite"
+} 
