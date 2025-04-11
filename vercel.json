@@ -16,11 +16,11 @@
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/chat-app/dist/assets/$1"
+      "dest": "/assets/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/chat-app/dist/index.html"
+      "dest": "index.html"
     }
   ]
 } 
