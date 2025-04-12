@@ -67,9 +67,11 @@ const Chat = () => {
         
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          console.log('User data loaded:', userData); // Debug log
           if (!userData.shortId) {
             // If shortId doesn't exist, generate one
             const shortId = await generateShortId();
+            console.log('Generated new shortId:', shortId); // Debug log
             await setDoc(userRef, {
               shortId: shortId,
               displayName: user.displayName || 'User',
@@ -79,6 +81,7 @@ const Chat = () => {
             }, { merge: true });
             setUserShortId(shortId);
           } else {
+            console.log('Using existing shortId:', userData.shortId); // Debug log
             setUserShortId(userData.shortId);
           }
           
@@ -627,8 +630,8 @@ const Chat = () => {
             </svg>
           </button>
           <button onClick={handleSignOut} className="logout-button">
-          Logout
-        </button>
+            Logout
+          </button>
         </div>
       </div>
 
@@ -646,6 +649,18 @@ const Chat = () => {
           
           {showNewChat && (
             <div className="connect-form">
+              <div className="form-header">
+                <h3>New Chat</h3>
+                <button 
+                  onClick={() => setShowNewChat(false)} 
+                  className="close-button"
+                  title="Close"
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>
+                  </svg>
+                </button>
+              </div>
               <div className="input-group">
                 <div className="input-wrapper">
                   <input
@@ -822,7 +837,10 @@ const Chat = () => {
                   placeholder="Write a message..."
                   disabled={!isOnline}
                 />
-                <button type="submit" disabled={!newMessage.trim() || !isOnline}>
+                <button 
+                  type="submit" 
+                  disabled={!newMessage.trim() || !isOnline}
+                >
                   Send
                 </button>
               </form>

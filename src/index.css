@@ -95,30 +95,38 @@ body {
   align-items: center;
   gap: 8px;
   background-color: var(--whispr-secondary-bg);
-  padding: 6px 12px;
+  padding: 8px 12px;
   border-radius: 12px;
   margin-right: 12px;
+  border: 1px solid var(--whispr-border);
 }
 
 .user-id span {
-  font-size: 13px;
-  color: var(--whispr-secondary-text);
+  font-size: 14px;
+  color: var(--whispr-text);
+  font-weight: 500;
 }
 
 .copy-button {
-  background-color: transparent;
-  border: 1px solid var(--whispr-link);
-  color: var(--whispr-link);
+  background-color: var(--whispr-button);
+  border: none;
+  color: var(--whispr-text);
   padding: 4px 8px;
   border-radius: 8px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .copy-button:hover {
-  background-color: var(--whispr-link);
-  color: var(--whispr-text);
+  background-color: var(--whispr-hover);
+}
+
+.copy-button:active {
+  transform: scale(0.95);
 }
 
 .connection-status {
@@ -211,70 +219,85 @@ body {
 }
 
 .message-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
   background-color: var(--whispr-secondary-bg);
   border-top: 1px solid var(--whispr-border);
-  padding: 12px 16px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  position: sticky;
-  bottom: 0;
-  width: 100%;
 }
 
-.message-form input {
+.message-form input[type="text"] {
   flex: 1;
-  background-color: var(--whispr-bg);
-  border: 1px solid var(--whispr-border);
-  padding: 12px 16px;
-  border-radius: 22px;
-  color: var(--whispr-text);
-  font-size: 14px;
   min-width: 0;
-  transition: border-color 0.2s;
-}
-
-.message-form input:focus {
-  outline: none;
-  border-color: var(--whispr-link);
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--whispr-border);
   background-color: var(--whispr-bg);
-}
-
-.message-form input::placeholder {
-  color: var(--whispr-secondary-text);
-}
-
-.message-form button {
-  background-color: var(--whispr-button);
   color: var(--whispr-text);
-  border: none;
-  padding: 8px 20px;
-  border-radius: 22px;
   font-size: 14px;
+}
+
+.message-form button[type="submit"] {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  background-color: var(--whispr-primary);
+  color: white;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.message-form button:hover:not(:disabled) {
-  background-color: var(--whispr-hover);
+.message-form button[type="submit"]:hover:not(:disabled) {
+  background-color: var(--whispr-secondary);
 }
 
-.message-form button:disabled {
-  background-color: var(--whispr-secondary-bg);
+.message-form button[type="submit"]:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  opacity: 0.7;
 }
 
 .connect-form {
-  max-width: 480px;
-  margin: 32px auto;
-  padding: 24px;
-  background-color: var(--whispr-secondary-bg);
-  border-radius: 12px;
-  border: 1px solid var(--whispr-border);
+  padding: 15px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.form-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.form-header .close-button {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.form-header .close-button:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.form-header .close-button:active {
+  transform: scale(0.95);
 }
 
 .input-group {
@@ -1254,4 +1277,65 @@ button {
     transform: translateX(100%);
     opacity: 0;
   }
+}
+
+/* Add styles for media messages */
+.message-media {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+video.message-media {
+  background-color: #000;
+}
+
+/* Style the attach button */
+.attach-button {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--whispr-secondary-text);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attach-button:hover:not(:disabled) {
+  background-color: var(--whispr-hover);
+  color: var(--whispr-primary);
+}
+
+.attach-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attach-button svg {
+  width: 24px;
+  height: 24px;
+  transform: rotate(-45deg);
+}
+
+/* Add a subtle rotation animation on hover */
+.attach-button:hover svg {
+  transform: rotate(-35deg);
+  transition: transform 0.2s ease;
+}
+
+/* Add loading state styles */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.message-form button[type="submit"]:disabled:not([data-empty="true"]) {
+  animation: pulse 1.5s infinite;
+  background-color: var(--whispr-primary);
+  opacity: 0.8;
 }

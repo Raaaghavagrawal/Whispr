@@ -2,25 +2,24 @@
   "version": 2,
   "builds": [
     {
-      "src": "chat-app/package.json",
+      "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist",
-        "buildCommand": "cd .. && cd chat-app && npm install && npm run build"
+        "distDir": "dist"
       }
     }
   ],
   "routes": [
-    { 
+    {
       "handle": "filesystem"
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/chat-app/dist/assets/$1"
+      "dest": "/assets/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/chat-app/dist/index.html"
+      "dest": "/index.html"
     }
   ]
 } 

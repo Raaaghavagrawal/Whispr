@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, runTransaction } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 
@@ -57,53 +57,43 @@ const Login = () => {
 
   const setupUser = async (user) => {
     try {
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
+      // Create a safe document ID from email (replace invalid characters)
+      const safeEmailId = user.email.replace(/[.#$[\]]/g, '_');
+      
+      // Always use email as the document ID
+      const userRef = doc(db, 'users', safeEmailId);
+      const userDoc = await getDoc(userRef);
 
-      if (!userSnap.exists()) {
-        // New user - generate a new shortId
+      if (userDoc.exists()) {
+        // User exists - update auth details but keep the same shortId
+        const existingData = userDoc.data();
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          lastSeen: new Date().toISOString(),
+          online: true,
+          shortId: existingData.shortId // Keep existing shortId
+        });
+        console.log('Updated existing user, kept shortId:', existingData.shortId);
+      } else {
+        // First time user - create new document with new shortId
         const shortId = await generateShortId();
-        console.log('Generated new shortId for new user:', shortId);
-        
         const userData = {
           uid: user.uid,
-          shortId: shortId,
           email: user.email,
+          shortId: shortId,
           displayName: user.displayName,
           photoURL: user.photoURL,
           createdAt: new Date().toISOString(),
           lastSeen: new Date().toISOString(),
           online: true
         };
-        
+
+        // Use email as document ID to ensure one record per email
         await setDoc(userRef, userData);
-        console.log('Created new user with data:', userData);
-      } else {
-        // Existing user - update lastSeen and ensure shortId exists
-        const userData = userSnap.data();
-        console.log('Existing user data:', userData);
-        
-        if (!userData.shortId) {
-          // If somehow the user doesn't have a shortId, generate one
-          const shortId = await generateShortId();
-          console.log('Generated new shortId for existing user:', shortId);
-          
-          await setDoc(userRef, {
-            shortId: shortId,
-            lastSeen: new Date().toISOString(),
-            online: true
-          }, { merge: true });
-          
-          console.log('Updated existing user with new shortId');
-        } else {
-          // Just update lastSeen and online status
-          await setDoc(userRef, {
-            lastSeen: new Date().toISOString(),
-            online: true
-          }, { merge: true });
-          
-          console.log('Updated existing user lastSeen and online status');
-        }
+        console.log('Created new user with shortId:', shortId);
       }
 
       // Navigate to chat after successful setup

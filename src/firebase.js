@@ -1,6 +1,12 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
+
+// Debug log to check environment variables
+console.log('Environment Variables:', {
+  VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
+});
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,26 +22,23 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Auth
-export const auth = getAuth(app);
+const auth = getAuth(app);
 
-// Initialize Firestore
-const db = getFirestore(app);
+// Initialize Firestore with persistence
+const db = initializeFirestore(app, {
+  cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+  experimentalAutoDetectLongPolling: true
+});
 
-// Enable offline persistence
-enableMultiTabIndexedDbPersistence(db)
-  .catch((err) => {
-    if (err.code === 'unimplemented') {
-      // The current browser doesn't support persistence
-      console.warn('Browser does not support persistence');
-    }
-  });
-
-export { db };
+// Initialize Storage
+const storage = getStorage(app);
 
 // Initialize Google Auth Provider
-export const googleProvider = new GoogleAuthProvider();
+const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('profile');
 googleProvider.addScope('email');
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
+
+export { auth, db, storage, googleProvider };
