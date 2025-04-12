@@ -57,11 +57,8 @@ const Login = () => {
 
   const setupUser = async (user) => {
     try {
-      // Create a safe document ID from email (replace invalid characters)
-      const safeEmailId = user.email.replace(/[.#$[\]]/g, '_');
-      
-      // Always use email as the document ID
-      const userRef = doc(db, 'users', safeEmailId);
+      // Use user's UID as the document ID
+      const userRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userRef);
 
       if (userDoc.exists()) {
@@ -75,7 +72,7 @@ const Login = () => {
           lastSeen: new Date().toISOString(),
           online: true,
           shortId: existingData.shortId // Keep existing shortId
-        });
+        }, { merge: true });
         console.log('Updated existing user, kept shortId:', existingData.shortId);
       } else {
         // First time user - create new document with new shortId
@@ -88,10 +85,11 @@ const Login = () => {
           photoURL: user.photoURL,
           createdAt: new Date().toISOString(),
           lastSeen: new Date().toISOString(),
-          online: true
+          online: true,
+          connections: {}
         };
 
-        // Use email as document ID to ensure one record per email
+        // Use UID as document ID
         await setDoc(userRef, userData);
         console.log('Created new user with shortId:', shortId);
       }
