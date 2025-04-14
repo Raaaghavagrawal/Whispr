@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 const Login = () => {
   const [error, setError] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isProcessingAuth, setIsProcessingAuth] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,11 +18,22 @@ const Login = () => {
     window.addEventListener('offline', handleOffline);
 
     // Check if user is already logged in
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       console.log('Auth state changed:', user ? 'User logged in' : 'No user');
-      if (user) {
-        console.log('Attempting to navigate to /chat');
-        navigate('/chat');
+      if (user && !isProcessingAuth) {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userRef);
+          
+          if (userDoc.exists()) {
+            console.log('User document exists, navigating to chat...');
+            navigate('/chat', { replace: true });
+          } else {
+            console.log('User document does not exist, waiting for setup...');
+          }
+        } catch (error) {
+          console.error('Error checking user document:', error);
+        }
       }
     });
 
@@ -30,7 +42,7 @@ const Login = () => {
       window.removeEventListener('offline', handleOffline);
       unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, isProcessingAuth]);
 
   const generateShortId = async () => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -59,6 +71,7 @@ const Login = () => {
 
   const setupUser = async (user) => {
     try {
+      setIsProcessingAuth(true);
       const userRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userRef);
 
@@ -96,8 +109,8 @@ const Login = () => {
         console.log('Created new user:', user.uid);
       }
 
-      // Navigate to chat after successful setup
-      navigate('/chat');
+      console.log('User setup complete, navigating to chat...');
+      navigate('/chat', { replace: true });
     } catch (error) {
       console.error('Error setting up user:', error);
       let errorMessage = 'Failed to set up user profile. Please try again.';
@@ -110,6 +123,8 @@ const Login = () => {
       
       setError(errorMessage);
       throw error;
+    } finally {
+      setIsProcessingAuth(false);
     }
   };
 
@@ -125,7 +140,6 @@ const Login = () => {
       const result = await signInWithPopup(auth, provider);
       console.log('Google sign-in successful, setting up user...');
       await setupUser(result.user);
-      console.log('User setup complete, navigation should occur via onAuthStateChanged');
     } catch (error) {
       console.error('Login error:', error);
       let errorMessage = 'Failed to sign in. Please try again.';
@@ -139,6 +153,7 @@ const Login = () => {
       }
 
       setError(errorMessage);
+      setIsProcessingAuth(false);
     }
   };
 
