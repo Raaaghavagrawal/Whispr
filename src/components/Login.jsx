@@ -18,7 +18,9 @@ const Login = () => {
 
     // Check if user is already logged in
     const unsubscribe = auth.onAuthStateChanged((user) => {
+      console.log('Auth state changed:', user ? 'User logged in' : 'No user');
       if (user) {
+        console.log('Attempting to navigate to /chat');
         navigate('/chat');
       }
     });
@@ -57,7 +59,6 @@ const Login = () => {
 
   const setupUser = async (user) => {
     try {
-      // Use user's UID as the document ID
       const userRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userRef);
 
@@ -67,31 +68,32 @@ const Login = () => {
         await setDoc(userRef, {
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName,
+          displayName: user.displayName || 'User',
           photoURL: user.photoURL,
           lastSeen: new Date().toISOString(),
           online: true,
-          shortId: existingData.shortId // Keep existing shortId
+          shortId: existingData.shortId
         }, { merge: true });
-        console.log('Updated existing user, kept shortId:', existingData.shortId);
+        console.log('Updated existing user:', user.uid);
       } else {
         // First time user - create new document with new shortId
         const shortId = await generateShortId();
+        const timestamp = new Date().toISOString();
         const userData = {
           uid: user.uid,
           email: user.email,
           shortId: shortId,
-          displayName: user.displayName,
+          displayName: user.displayName || 'User',
           photoURL: user.photoURL,
-          createdAt: new Date().toISOString(),
-          lastSeen: new Date().toISOString(),
+          createdAt: timestamp,
+          lastSeen: timestamp,
           online: true,
           connections: {}
         };
 
-        // Use UID as document ID
+        // Create new user document
         await setDoc(userRef, userData);
-        console.log('Created new user with shortId:', shortId);
+        console.log('Created new user:', user.uid);
       }
 
       // Navigate to chat after successful setup
@@ -118,9 +120,12 @@ const Login = () => {
     }
 
     try {
+      console.log('Starting Google sign-in process...');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
+      console.log('Google sign-in successful, setting up user...');
       await setupUser(result.user);
+      console.log('User setup complete, navigation should occur via onAuthStateChanged');
     } catch (error) {
       console.error('Login error:', error);
       let errorMessage = 'Failed to sign in. Please try again.';
