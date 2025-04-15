@@ -31,7 +31,7 @@
   --whispr-border: #293442;
   --whispr-text: #FFFFFF;
   --whispr-secondary-text: #8A8F97;
-  --whispr-sent-message: #2AABEE;
+  --whispr-sent-message: #ffffff;
   --whispr-received-message: #242f3d;
   --whispr-online: #31C48D;
   --whispr-ripple: rgba(255, 255, 255, 0.08);
@@ -183,7 +183,7 @@ body {
   background-color: var(--whispr-sent-message);
   margin-left: auto;
   border-bottom-right-radius: 4px;
-  color: #ffffff;
+  color: #000000;
 }
 
 .message.received {
@@ -211,7 +211,7 @@ body {
 }
 
 .message.sent .message-time {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(43, 43, 43, 0.9);
 }
 
 .message.received .message-time {
@@ -1338,4 +1338,42 @@ video.message-media {
   animation: pulse 1.5s infinite;
   background-color: var(--whispr-primary);
   opacity: 0.8;
+}
+
+/* Link Styles */
+a {
+  color: var(--whispr-link, #4a9eff);
+  text-decoration: none;
+  transition: color 0.2s, text-decoration 0.2s;
+  word-break: break-word;
+}
+
+a:hover {
+  color: var(--whispr-link-hover, #2b7fdb);
+  text-decoration: underline;
+}
+
+a:visited {
+  color: var(--whispr-link-visited, #8e44ad);
+}
+
+a:active {
+  color: var(--whispr-link-active, #1e5c9a);
+}
+
+/* External Link Styles */
+a[target="_blank"]::after {
+  content: "↗";
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 0.8em;
+  text-decoration: none;
+}
+
+/* Message Link Styles */
+.message-content a {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -564,6 +564,32 @@ const Chat = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const linkifyText = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (!part) return null;
+      if (part.match(urlRegex)) {
+        const url = part.startsWith('www.') ? `https://${part}` : part;
+        return (
+          <a
+            key={index}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            {part}
+          </a>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="loading-container">
@@ -814,7 +840,7 @@ const Chat = () => {
                       className={`message ${message.sender === auth.currentUser.uid ? 'sent' : 'received'}`}
                     >
                       <div className="message-content">
-                        {message.text}
+                        {linkifyText(message.text)}
                         <span className="message-time">
                           {formatTime(message.timestamp)}
                         </span>
