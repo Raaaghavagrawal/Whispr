@@ -22,7 +22,7 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const messageListenerRef = useRef(null);
   const navigate = useNavigate();
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [activeMenu, setActiveMenu] = useState(null);
   const [notification, setNotification] = useState(null);
 

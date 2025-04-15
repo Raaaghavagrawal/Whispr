@@ -11,6 +11,11 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Set dark theme by default
+    const theme = localStorage.getItem('theme') || 'dark';
+    localStorage.setItem('theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -160,12 +165,12 @@ const Login = () => {
   return (
     <div className="login-container">
       <div className="login-content">
-        <div className="whispr-logo">
+        <div className="yappin-logo">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42l10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701l-.321 4.843c.47 0 .677-.216.94-.47l2.26-2.2l4.709 3.477c.867.48 1.49.233 1.71-.804l3.082-14.503c.314-1.262-.485-1.835-1.558-1.31z" fill="currentColor"/>
           </svg>
         </div>
-        <h1>Welcome to Whispr</h1>
+        <h1>Welcome to Yappin</h1>
         <p>Sign in with Google to start chatting</p>
         <button 
           className="google-signin-button"
