@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { collection, addDoc, query, orderBy, onSnapshot, doc, getDoc, setDoc, where, getDocs, deleteDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
+import CreateGroup from './CreateGroup';
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
@@ -19,6 +20,11 @@ const Chat = () => {
   const [showNewChat, setShowNewChat] = useState(false);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 480);
   const [showMessages, setShowMessages] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [currentChatType, setCurrentChatType] = useState('individual');
+  const [currentGroupId, setCurrentGroupId] = useState(null);
+  const [groupInfo, setGroupInfo] = useState(null);
+  const [userGroups, setUserGroups] = useState([]);
   const messagesEndRef = useRef(null);
   const messageListenerRef = useRef(null);
   const navigate = useNavigate();
@@ -53,6 +59,7 @@ const Chat = () => {
 
   useEffect(() => {
     let unsubscribeChats = null;
+    let unsubscribeGroups = null;
     
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) {
@@ -90,6 +97,7 @@ const Chat = () => {
           
           // Load recent chats and store the unsubscribe function
           unsubscribeChats = await loadRecentChats(user.uid);
+          unsubscribeGroups = await loadUserGroups(user.uid);
         } else {
           console.error('User document not found');
           setError('Failed to load user data. Please try logging in again.');
@@ -108,6 +116,9 @@ const Chat = () => {
       unsubscribeAuth();
       if (unsubscribeChats) {
         unsubscribeChats();
+      }
+      if (unsubscribeGroups) {
+        unsubscribeGroups();
       }
       if (auth.currentUser) {
         updateUserStatus(auth.currentUser.uid, false);
@@ -474,6 +485,9 @@ const Chat = () => {
         });
         setIsConnected(true);
         setShowMessages(true);
+        // Set the current chat type to individual
+        setCurrentChatType('individual');
+        setCurrentGroupId(null);
         setupMessageListener(chatInfo.recipientUid);
       } else {
         console.error('Recipient user document not found');
@@ -489,7 +503,6 @@ const Chat = () => {
     setShowMessages(false);
   };
 
-  // Add theme toggle function
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
@@ -497,7 +510,6 @@ const Chat = () => {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  // Initialize theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, []);
@@ -542,7 +554,6 @@ const Chat = () => {
     }
   };
 
-  // Add click outside handler to close menu
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (activeMenu && !event.target.closest('.chat-item-options')) {
@@ -554,7 +565,6 @@ const Chat = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [activeMenu]);
 
-  // Add resize listener
   useEffect(() => {
     const handleResize = () => {
       setIsMobileView(window.innerWidth <= 480);
@@ -588,6 +598,366 @@ const Chat = () => {
       }
       return <span key={index}>{part}</span>;
     });
+  };
+
+  const loadUserGroups = async (userId) => {
+    try {
+      console.log('Loading groups for user:', userId);
+      const userRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const userGroupIds = userData.groups || {};
+        
+        // Query all groups that the user is a member of
+        const groupsQuery = query(
+          collection(db, 'groups'),
+          where('members', 'array-contains', userId)
+        );
+        
+        // Use try-catch with onSnapshot to handle potential permission errors
+        let unsubscribe = () => {};
+        
+        try {
+          unsubscribe = onSnapshot(groupsQuery, async (snapshot) => {
+            const groupsList = [];
+            
+            for (const groupDoc of snapshot.docs) {
+              const groupData = groupDoc.data();
+              
+              // Get the last message (if any)
+              let lastMessage = '';
+              let lastMessageTime = groupData.lastMessageTime || groupData.createdAt;
+              
+              // Create group entry
+              groupsList.push({
+                id: groupDoc.id,
+                name: groupData.name,
+                createdBy: groupData.createdBy,
+                members: groupData.members,
+                lastMessage: groupData.lastMessage || '',
+                timestamp: lastMessageTime,
+                isGroup: true
+              });
+            }
+            
+            console.log('Loaded groups:', groupsList);
+            setUserGroups(groupsList);
+          }, (error) => {
+            // Handle snapshot errors
+            console.error('Error in group snapshot listener:', error);
+            if (error.code === 'permission-denied') {
+              console.log('Permission denied for groups query. This may be expected if the user has no groups.');
+              setUserGroups([]); // Set to empty array since we have no access
+            } else {
+              setError(`Failed to load groups: ${error.message}`);
+            }
+          });
+        } catch (snapshotError) {
+          console.error('Error setting up group snapshot:', snapshotError);
+          // Don't show error to user, just log it
+        }
+        
+        return unsubscribe;
+      }
+      
+      return () => {}; // Return empty function if user doc doesn't exist
+    } catch (error) {
+      console.error('Error loading user groups:', error);
+      if (error.code === 'permission-denied') {
+        console.log('Permission denied for user document or groups collection.');
+        return () => {}; // Return empty function since we can't access data
+      } else {
+        setError('Failed to load your groups');
+        return () => {};
+      }
+    }
+  };
+
+  useEffect(() => {
+    const combinedChats = [
+      ...recentChats,
+      ...userGroups.map(group => ({
+        chatId: `group_${group.id}`,
+        recipientId: null,
+        recipientUid: null,
+        recipientName: group.name,
+        recipientPhoto: null, // Could use a group icon here
+        lastMessage: group.lastMessage,
+        timestamp: group.timestamp,
+        isGroup: true,
+        groupId: group.id
+      }))
+    ];
+    
+    // Sort by timestamp (most recent first)
+    combinedChats.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+    
+  }, [recentChats, userGroups]);
+
+  const setupGroupMessageListener = useCallback((groupId) => {
+    if (!auth.currentUser || !groupId) return;
+
+    try {
+      // Check if group exists and the user is a member first
+      getDoc(doc(db, 'groups', groupId))
+        .then(groupDoc => {
+          if (!groupDoc.exists()) {
+            console.error("Group does not exist");
+            setError("Group not found.");
+            return;
+          }
+          
+          const groupData = groupDoc.data();
+          if (!groupData.members.includes(auth.currentUser.uid)) {
+            console.error("User is not a member of this group");
+            setError("You are not a member of this group.");
+            return;
+          }
+          
+          // Group exists and user is a member, set up the messages listener
+          const q = query(
+            collection(db, `groups/${groupId}/messages`),
+            orderBy('timestamp')
+          );
+
+          // Clean up previous listener if exists
+          if (messageListenerRef.current) {
+            messageListenerRef.current();
+          }
+
+          messageListenerRef.current = onSnapshot(q, (snapshot) => {
+            const messageList = [];
+            snapshot.forEach((doc) => {
+              messageList.push({ ...doc.data(), id: doc.id });
+            });
+            setMessages(messageList);
+          }, (error) => {
+            console.error("Error in group message listener:", error);
+            if (error.code === 'permission-denied') {
+              setError("You don't have permission to view these messages.");
+            } else {
+              setError("Failed to load group messages. Please try reconnecting.");
+            }
+          });
+        })
+        .catch(error => {
+          console.error("Error checking group:", error);
+          if (error.code === 'permission-denied') {
+            setError("You don't have permission to access this group.");
+          } else {
+            setError("Error loading group data. Please try again.");
+          }
+        });
+    } catch (error) {
+      console.error("Error setting up group message listener:", error);
+      setError("Failed to initialize group chat. Please try again.");
+    }
+  }, []);
+
+  const switchToGroup = async (groupId) => {
+    try {
+      setShowNewChat(false);
+      
+      // Get the latest group data
+      const groupDoc = await getDoc(doc(db, 'groups', groupId));
+      if (groupDoc.exists()) {
+        const groupData = groupDoc.data();
+        
+        // Load all member info
+        const memberInfo = [];
+        for (const memberId of groupData.members) {
+          if (memberId !== auth.currentUser.uid) {
+            try {
+              const memberDoc = await getDoc(doc(db, 'users', memberId));
+              if (memberDoc.exists()) {
+                const memberData = memberDoc.data();
+                memberInfo.push({
+                  id: memberId,
+                  displayName: memberData.displayName || 'Unknown User',
+                  photoURL: memberData.photoURL,
+                  shortId: memberData.shortId
+                });
+              }
+            } catch (error) {
+              console.error('Error loading member info:', error);
+            }
+          }
+        }
+        
+        setGroupInfo({
+          id: groupId,
+          name: groupData.name,
+          members: memberInfo,
+          createdBy: groupData.createdBy,
+          createdAt: groupData.createdAt
+        });
+        
+        setCurrentChatType('group');
+        setCurrentGroupId(groupId);
+        setIsConnected(true);
+        setShowMessages(true);
+        setupGroupMessageListener(groupId);
+      } else {
+        console.error('Group document not found');
+        setError('Group not found');
+      }
+    } catch (error) {
+      console.error('Error switching to group:', error);
+      setError('Failed to load group. Please try again.');
+    }
+  };
+
+  const sendGroupMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !currentGroupId || !auth.currentUser) return;
+
+    const messageText = newMessage.trim();
+    setNewMessage('');
+
+    try {
+      const timestamp = new Date().toISOString();
+      
+      // Update group document first
+      await updateDoc(doc(db, 'groups', currentGroupId), {
+        lastMessage: messageText,
+        lastMessageTime: timestamp,
+        updatedAt: timestamp
+      });
+
+      // Then add the message
+      await addDoc(collection(db, `groups/${currentGroupId}/messages`), {
+        text: messageText,
+        sender: auth.currentUser.uid,
+        senderName: auth.currentUser.displayName || 'You',
+        timestamp: timestamp
+      });
+
+    } catch (error) {
+      console.error("Error sending group message:", error);
+      setError('Failed to send message. Please try again.');
+      setNewMessage(messageText);
+    }
+  };
+
+  const handleGroupCreated = (groupId) => {
+    switchToGroup(groupId);
+    showNotification('Group created successfully!', 'success');
+  };
+
+  const renderChatListHeader = () => (
+    <div className="chat-list-header">
+      <h2>Contacts & Groups</h2>
+      <div className="chat-actions">
+        <button onClick={() => setShowNewChat(true)} className="chat-action-button blue-button">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+          </svg>
+          New Chat
+        </button>
+      </div>
+    </div>
+  );
+
+  const handleDeleteGroup = async (groupId) => {
+    try {
+      // Check if user is group creator
+      const groupRef = doc(db, 'groups', groupId);
+      const groupDoc = await getDoc(groupRef);
+      
+      if (!groupDoc.exists()) {
+        showNotification('Group not found', 'error');
+        return;
+      }
+      
+      const groupData = groupDoc.data();
+      const isCreator = groupData.createdBy === auth.currentUser.uid;
+      
+      if (isCreator) {
+        // Creator can delete the entire group
+        // First, delete all messages in the group
+        const messagesRef = collection(db, `groups/${groupId}/messages`);
+        const messagesSnapshot = await getDocs(messagesRef);
+        const batch = writeBatch(db);
+        
+        messagesSnapshot.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+        
+        // Delete the group itself
+        batch.delete(groupRef);
+        await batch.commit();
+        
+        // Remove the group from all members' user documents
+        for (const memberId of groupData.members) {
+          try {
+            const memberRef = doc(db, 'users', memberId);
+            const memberDoc = await getDoc(memberRef);
+            
+            if (memberDoc.exists()) {
+              const memberData = memberDoc.data();
+              if (memberData.groups && memberData.groups[groupId]) {
+                const updatedGroups = { ...memberData.groups };
+                delete updatedGroups[groupId];
+                await updateDoc(memberRef, { groups: updatedGroups });
+              }
+            }
+          } catch (memberError) {
+            console.error(`Error updating member ${memberId}:`, memberError);
+          }
+        }
+        
+        // Update UI
+        setUserGroups(prevGroups => prevGroups.filter(group => group.id !== groupId));
+        
+        if (currentChatType === 'group' && currentGroupId === groupId) {
+          setCurrentChatType('individual');
+          setCurrentGroupId(null);
+          setGroupInfo(null);
+          setIsConnected(false);
+          setMessages([]);
+        }
+        
+        showNotification('Group deleted successfully', 'success');
+      } else {
+        // Non-creator can only leave the group
+        // Update the group's members list
+        const updatedMembers = groupData.members.filter(id => id !== auth.currentUser.uid);
+        await updateDoc(groupRef, { members: updatedMembers });
+        
+        // Remove the group from the user's document
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.groups && userData.groups[groupId]) {
+            const updatedGroups = { ...userData.groups };
+            delete updatedGroups[groupId];
+            await updateDoc(userRef, { groups: updatedGroups });
+          }
+        }
+        
+        // Update UI
+        setUserGroups(prevGroups => prevGroups.filter(group => group.id !== groupId));
+        
+        if (currentChatType === 'group' && currentGroupId === groupId) {
+          setCurrentChatType('individual');
+          setCurrentGroupId(null);
+          setGroupInfo(null);
+          setIsConnected(false);
+          setMessages([]);
+        }
+        
+        showNotification('You left the group', 'success');
+      }
+      
+      setActiveMenu(null);
+    } catch (error) {
+      console.error('Error deleting/leaving group:', error);
+      showNotification('Failed to delete/leave group');
+    }
   };
 
   if (isLoading) {
@@ -663,15 +1033,7 @@ const Chat = () => {
 
       <div className="chat-layout">
         <div className={`recent-chats-list ${showMessages && isMobileView ? 'hidden' : ''}`}>
-          <div className="chat-list-header">
-            <h2>Recent Chats</h2>
-            <button onClick={() => setShowNewChat(true)} className="new-chat-button">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-              </svg>
-              New Chat
-            </button>
-          </div>
+          {renderChatListHeader()}
           
           {showNewChat && (
             <div className="connect-form">
@@ -723,16 +1085,54 @@ const Chat = () => {
             </div>
           )}
 
+          {showCreateGroup && (
+            <CreateGroup 
+              onClose={() => setShowCreateGroup(false)}
+              onSuccess={handleGroupCreated}
+            />
+          )}
+
           <div className="chats-list">
-            {recentChats.length > 0 ? (
-              recentChats.map((chat) => (
+            {[...recentChats, ...userGroups.map(group => ({
+              chatId: `group_${group.id}`,
+              recipientName: group.name,
+              lastMessage: group.lastMessage,
+              timestamp: group.timestamp,
+              isGroup: true,
+              groupId: group.id
+            }))].sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || '')).length > 0 ? (
+              [...recentChats, ...userGroups.map(group => ({
+                chatId: `group_${group.id}`,
+                recipientName: group.name,
+                lastMessage: group.lastMessage,
+                timestamp: group.timestamp,
+                isGroup: true,
+                groupId: group.id
+              }))].sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || '')).map((chat) => (
                 <div
                   key={chat.chatId}
-                  className={`chat-item ${recipientInfo?.shortId === chat.recipientId ? 'active' : ''}`}
-                  onClick={() => switchChat(chat)}
+                  className={`chat-item ${
+                    (currentChatType === 'individual' && recipientInfo?.shortId === chat.recipientId) ||
+                    (currentChatType === 'group' && chat.isGroup && currentGroupId === chat.groupId)
+                      ? 'active'
+                      : ''
+                  }`}
+                  onClick={() => {
+                    if (chat.isGroup) {
+                      switchToGroup(chat.groupId);
+                    } else {
+                      switchChat(chat);
+                    }
+                  }}
                 >
                   <div className="chat-item-avatar">
-                    {chat.recipientPhoto ? (
+                    {chat.isGroup ? (
+                      <div className="group-avatar">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                          <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                        </svg>
+                      </div>
+                    ) : chat.recipientPhoto ? (
                       <img src={chat.recipientPhoto} alt={chat.recipientName} />
                     ) : (
                       <div className="avatar-placeholder">
@@ -741,7 +1141,10 @@ const Chat = () => {
                     )}
                   </div>
                   <div className="chat-item-info">
-                    <div className="chat-item-name">{chat.recipientName}</div>
+                    <div className="chat-item-name">
+                      {chat.isGroup && <span className="group-indicator">Group</span>}
+                      {chat.recipientName}
+                    </div>
                     <div className="chat-item-message">
                       {chat.lastMessage || (
                         <span className="no-messages">Click to start chatting</span>
@@ -769,7 +1172,11 @@ const Chat = () => {
                           className="options-menu-item delete"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteChat(chat.chatId, chat.recipientUid);
+                            if (chat.isGroup) {
+                              handleDeleteGroup(chat.groupId);
+                            } else {
+                              handleDeleteChat(chat.chatId, chat.recipientUid);
+                            }
                           }}
                         >
                           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -786,19 +1193,38 @@ const Chat = () => {
               <div className="empty-chat">
                 <div className="empty-chat-illustration">
                   <svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zm-2-7H6v2h12V9zm0-3H6v2h12V6z"/>
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 14H5.17L4 17.17V4h16v12zm-2-7H6v2h12V9zm0-3H6v2h12V6z"/>
                   </svg>
                 </div>
                 <p>Welcome! Start your first conversation</p>
-                <button onClick={() => setShowNewChat(true)} className="start-chat-button">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                  </svg>
-                  Start a New Chat
-                </button>
+                <div className="start-options">
+                  <button onClick={() => setShowNewChat(true)} className="start-chat-button">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                      <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    Start a New Chat
+                  </button>
+                  <button onClick={() => setShowCreateGroup(true)} className="start-group-button">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                    </svg>
+                    Create a Group
+                  </button>
+                </div>
               </div>
             )}
           </div>
+          
+          <button 
+            className="create-group-simple-fab" 
+            onClick={() => setShowCreateGroup(true)}
+            title="Create New Group"
+            aria-label="Create New Group"
+          >
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+          </button>
         </div>
 
         <div className={`messages-container ${showMessages ? 'active' : ''}`}>
@@ -813,23 +1239,39 @@ const Chat = () => {
           {isConnected ? (
             <>
               <div className="chat-header">
-                <div className="recipient-info">
-                  <div className="recipient-avatar">
-                    {recipientInfo?.photoURL ? (
-                      <img src={recipientInfo.photoURL} alt={recipientInfo.displayName} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {recipientInfo?.displayName?.[0]?.toUpperCase() || '?'}
-                      </div>
-                    )}
+                {currentChatType === 'individual' ? (
+                  <div className="recipient-info">
+                    <div className="recipient-avatar">
+                      {recipientInfo?.photoURL ? (
+                        <img src={recipientInfo.photoURL} alt={recipientInfo.displayName} />
+                      ) : (
+                        <div className="avatar-placeholder">
+                          {recipientInfo?.displayName?.[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="recipient-details">
+                      <h2>{recipientInfo?.displayName || 'Unknown User'}</h2>
+                      <span className={`status ${recipientInfo?.online ? 'online' : 'offline'}`}>
+                        {recipientInfo?.online ? 'online' : 'offline'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="recipient-details">
-                    <h2>{recipientInfo?.displayName || 'Unknown User'}</h2>
-                    <span className={`status ${recipientInfo?.online ? 'online' : 'offline'}`}>
-                      {recipientInfo?.online ? 'online' : 'offline'}
-                    </span>
+                ) : (
+                  <div className="group-info">
+                    <div className="group-avatar">
+                      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                      </svg>
+                    </div>
+                    <div className="group-details">
+                      <h2>{groupInfo?.name || 'Group Chat'}</h2>
+                      <span className="member-count">
+                        {groupInfo?.members?.length + 1} members
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="messages">
@@ -839,6 +1281,11 @@ const Chat = () => {
                       key={message.id}
                       className={`message ${message.sender === auth.currentUser.uid ? 'sent' : 'received'}`}
                     >
+                      {currentChatType === 'group' && (
+                        <div className="message-sender">
+                          {message.sender === auth.currentUser.uid ? 'You' : (message.senderName || 'Unknown')}
+                        </div>
+                      )}
                       <div className="message-content">
                         {linkifyText(message.text)}
                         <span className="message-time">
@@ -848,39 +1295,64 @@ const Chat = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="empty-chat">
-                    <p>No messages yet</p>
-                    <p>Start the conversation by sending a message!</p>
+                  <div className="empty-messages">
+                    <p>No messages yet. Start the conversation!</p>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
-              <form onSubmit={sendMessage} className="message-form">
+
+              <form 
+                className="message-form" 
+                onSubmit={currentChatType === 'individual' ? sendMessage : sendGroupMessage}
+              >
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Write a message..."
-                  disabled={!isOnline}
+                  placeholder="Type a message..."
+                  className="message-input"
                 />
                 <button 
                   type="submit" 
-                  disabled={!newMessage.trim() || !isOnline}
+                  disabled={!newMessage.trim()}
+                  className="send-button"
                 >
-                  Send
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                  </svg>
                 </button>
               </form>
             </>
           ) : (
-            <div className="empty-chat welcome-message">
-              <p>Select a chat or start a new conversation</p>
-              <button onClick={() => setShowNewChat(true)} className="start-chat-button">
-                Start a new chat
-              </button>
+            <div className="no-chat-selected">
+              <div className="no-chat-illustration">
+                <svg viewBox="0 0 24 24" width="100" height="100" fill="currentColor">
+                  <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+                </svg>
+              </div>
+              <p>Select a chat to start messaging</p>
+              <p>or start a new conversation</p>
             </div>
           )}
         </div>
       </div>
+      
+      {error && (
+        <div className="error-popup">
+          <div className="error-content">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            <p>{error}</p>
+          </div>
+          <button onClick={() => setError('')}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

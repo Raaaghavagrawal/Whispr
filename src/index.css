@@ -6,6 +6,7 @@
   /* Light theme variables */
   --yappin-primary: #2AABEE;
   --yappin-secondary: #229ED9;
+  --app-height: 100%;
 }
 
 :root[data-theme="light"] {
@@ -15,7 +16,7 @@
   --yappin-border: #E4E4E7;
   --yappin-text: #18181B;
   --yappin-secondary-text: #71717A;
-  --yappin-sent-message: #2AABEE;
+  --yappin-sent-message: #ffffff;
   --yappin-received-message: #ffffff;
   --yappin-online: #31C48D;
   --yappin-ripple: rgba(42, 171, 238, 0.1);
@@ -48,12 +49,21 @@
   --yappin-link-active: #1e5c9a;
 }
 
-* {
+/* Add these styles after the existing :root declarations but before the * selector */
+html, body, #root {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
+/* Update the body styles */
 body {
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -61,22 +71,27 @@ body {
   background-color: var(--yappin-bg);
   color: var(--yappin-text);
   line-height: 1.5;
-  height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Update the app container */
 .app-container {
-  height: 100vh;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
+/* Update the chat container */
 .chat-container {
-  height: 100vh;
+  height: var(--app-height);
+  width: 100%;
   display: flex;
   flex-direction: column;
   background-color: var(--yappin-bg);
+  overflow: hidden;
 }
 
 .chat-header {
@@ -534,8 +549,8 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
   .connect-form {
-    margin: 16px;
-    padding: 16px;
+    margin: 12px;
+    padding: 12px;
   }
 
   .message {
@@ -551,79 +566,52 @@ body {
 @media (max-width: 480px) {
   .chat-layout {
     flex-direction: column;
-    height: calc(100vh - 56px);
+    height: calc(100% - 54px);
   }
-
+  
   .recent-chats-list {
     width: 100%;
     height: 100%;
+    transition: transform 0.3s ease;
   }
-
+  
   .recent-chats-list.hidden {
     display: none;
   }
-
+  
   .messages-container {
-    display: none;
+    width: 100%;
     height: 100%;
+    position: absolute;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
   }
-
+  
   .messages-container.active {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 56px);
+    transform: translateX(0);
   }
-
+  
   .messages {
-    flex: 1;
-    padding-bottom: 80px;
+    padding: 12px;
+    height: calc(100% - 98px); /* Account for header + form + back button */
   }
-
+  
   .message-form {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: var(--yappin-bg);
-    border-top: 1px solid var(--yappin-border);
-    padding: 8px 12px;
+    padding: 8px;
+    height: 56px;
   }
-
-  .back-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: none;
-    border: none;
-    color: var(--yappin-text);
-    font-size: 14px;
-    cursor: pointer;
-    margin-bottom: 8px;
-  }
-
-  .back-button:hover {
-    background-color: var(--yappin-hover);
-    border-radius: 8px;
-  }
-
-  .back-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
+  
   .chat-header {
-    padding: 8px 12px;
+    padding: 0 12px;
   }
-
+  
   .user-id {
-    font-size: 12px;
-    padding: 4px 8px;
+    display: none;
   }
-
+  
   .copy-button {
-    padding: 2px 6px;
-    font-size: 11px;
+    padding: 6px 8px;
+    font-size: 0.75rem;
   }
 }
 
@@ -751,17 +739,67 @@ body {
 
 .chat-layout {
   display: flex;
-  height: calc(100vh - 56px);
+  height: calc(100% - 56px); /* Subtract the header height */
+  width: 100%;
+  overflow: hidden;
+  position: relative;
   background-color: var(--yappin-bg);
 }
 
+/* Update the recent chats list */
 .recent-chats-list {
+  position: relative;
   width: 320px;
+  height: 100%;
   border-right: 1px solid var(--yappin-border);
+  overflow-y: auto;
   background-color: var(--yappin-secondary-bg);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+}
+
+/* Update the messages container */
+.messages-container {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--yappin-bg);
+}
+
+/* Update the messages area */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: calc(100% - 56px - 60px); /* Subtract header and message form heights */
+}
+
+/* Update the message form */
+.message-form {
+  display: flex;
+  padding: 12px;
+  background-color: var(--yappin-secondary-bg);
+  border-top: 1px solid var(--yappin-border);
+  height: 60px;
+  margin-top: auto;
+}
+
+/* Add style for the connect form */
+.connect-form {
+  margin: 16px;
+  padding: 16px;
+  background-color: var(--yappin-bg);
+  border-radius: 12px;
+}
+
+/* Add style for the * selector that was removed */
+* {
+  box-sizing: border-box;
 }
 
 .chat-list-header {
@@ -784,30 +822,6 @@ body {
 .chats-list {
   flex: 1;
   overflow-y: auto;
-}
-
-.messages-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background-color: var(--yappin-bg);
-}
-
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.connect-form {
-  margin: 16px;
-  padding: 16px;
-  background-color: var(--yappin-bg);
-  border-radius: 12px;
 }
 
 .welcome-message {
@@ -1388,4 +1402,624 @@ a[target="_blank"]::after {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Group creation styles */
+.create-group-container {
+  background-color: var(--bg-color-light);
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin: 1rem 0;
+  padding: 1rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.create-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.create-group-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+.group-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.group-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.group-name-input {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 1rem;
+}
+
+.members-section {
+  margin-top: 1rem;
+}
+
+.connections-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-color);
+}
+
+.connection-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s;
+}
+
+.connection-item:last-child {
+  border-bottom: none;
+}
+
+.connection-item:hover {
+  background-color: var(--hover-color);
+}
+
+.connection-item.selected {
+  background-color: var(--primary-color-light);
+}
+
+.connection-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--accent-color);
+  color: white;
+  font-weight: bold;
+}
+
+.connection-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.connection-info {
+  flex: 1;
+}
+
+.connection-name {
+  font-weight: 500;
+  margin-bottom: 2px;
+  color: var(--text-color);
+}
+
+.connection-id {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.selection-indicator {
+  margin-left: auto;
+  color: var(--primary-color);
+}
+
+.loading-connections,
+.no-connections {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.cancel-button,
+.create-button {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-button {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.cancel-button:hover {
+  background-color: var(--hover-color);
+}
+
+.create-button {
+  background-color: var(--primary-color);
+  border: none;
+  color: white;
+}
+
+.create-button:hover {
+  background-color: var(--primary-color-dark);
+}
+
+.create-button:disabled {
+  background-color: var(--disabled-color);
+  cursor: not-allowed;
+}
+
+/* Group list and chat styles */
+.chat-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-action-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background-color: var(--bg-color-light);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-color);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chat-action-button:hover {
+  background-color: var(--hover-color);
+}
+
+.chat-action-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.group-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--primary-color-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+}
+
+.group-indicator {
+  background-color: var(--primary-color-light);
+  color: var(--primary-color);
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-right: 6px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.group-info {
+  display: flex;
+  align-items: center;
+}
+
+.group-details {
+  margin-left: 12px;
+}
+
+.group-details h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+.member-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.message-sender {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 4px;
+  padding: 0 4px;
+}
+
+.message.sent .message-sender {
+  text-align: right;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.message.received .message-sender {
+  text-align: left;
+  color: var(--yappin-primary);
+}
+
+.start-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.start-chat-button,
+.start-group-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.start-chat-button:hover,
+.start-group-button:hover {
+  background-color: var(--primary-color-dark);
+}
+
+.start-group-button {
+  background-color: var(--bg-color-light);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.start-group-button:hover {
+  background-color: var(--hover-color);
+}
+
+/* Fix viewport height issues on mobile */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    height: -webkit-fill-available;
+  }
+}
+
+/* Make sure the back button appears on mobile */
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--yappin-text);
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.back-button:hover {
+  background-color: var(--yappin-hover);
+  border-radius: 8px;
+}
+
+.back-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Update the variable value for mobile devices */
+@media screen and (max-width: 768px) {
+  :root {
+    --app-height: 100vh;
+  }
+}
+
+/* Add this at the end of the file to handle mobile Safari */
+@supports (-webkit-touch-callout: none) {
+  .chat-container, #root {
+    height: -webkit-fill-available;
+  }
+}
+
+/* iOS specific styles to prevent window shrinking when virtual keyboard appears */
+@media only screen and (max-device-width: 812px) and (-webkit-min-device-pixel-ratio: 2) {
+  body, html, #root, .chat-container {
+    position: fixed;
+    height: 100vh;
+    width: 100vw;
+    max-height: -webkit-fill-available;
+    overflow: hidden;
+  }
+  
+  .messages {
+    /* Allow scrolling only in the messages area */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Prevent scrolling on the entire app */
+  .chat-layout {
+    overflow: hidden;
+  }
+}
+
+/* Add JavaScript fullscreen class for manual fullscreen handling */
+.fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 999999 !important;
+}
+
+/* Styles for the new group members selection UI */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.toggle-container {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.toggle-input {
+  position: relative;
+  appearance: none;
+  width: 36px;
+  height: 18px;
+  background-color: var(--yappin-border);
+  border-radius: 20px;
+  transition: all 0.3s;
+  outline: none;
+  cursor: pointer;
+}
+
+.toggle-input:checked {
+  background-color: var(--yappin-primary);
+}
+
+.toggle-input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background-color: white;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.toggle-input:checked::after {
+  left: 20px;
+}
+
+.toggle-text {
+  font-size: 12px;
+  color: var(--yappin-secondary-text);
+  white-space: nowrap;
+}
+
+.connections-list {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--yappin-border);
+  border-radius: 12px;
+  background-color: var(--yappin-bg);
+}
+
+.show-all-users-button {
+  margin-top: 12px;
+  background-color: var(--yappin-secondary-bg);
+  color: var(--yappin-primary);
+  border: 1px solid var(--yappin-primary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.show-all-users-button:hover {
+  background-color: var(--yappin-primary);
+  color: white;
+}
+
+/* Make the Create Group FAB much more visible */
+.create-group-fab {
+  position: fixed; /* Change back to fixed position */
+  bottom: 30px;
+  right: 30px;
+  width: 64px; /* Increased size */
+  height: 64px; /* Increased size */
+  border-radius: 50%;
+  background-color: #FF5722; /* Change to a bright orange color for better visibility */
+  color: white;
+  border: none;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4); /* Stronger shadow */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 9999; /* Very high z-index to ensure visibility */
+  opacity: 0.95; /* Slightly transparent */
+}
+
+.create-group-fab:hover {
+  transform: translateY(-3px) scale(1.05); /* Bigger scale on hover */
+  background-color: #FF7043; /* Lighter orange on hover */
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
+}
+
+.create-group-fab svg {
+  width: 32px; /* Larger icon */
+  height: 32px; /* Larger icon */
+}
+
+/* Ensure the FAB is inside the chats list on mobile */
+@media (max-width: 768px) {
+  .create-group-fab {
+    bottom: 16px;
+    right: 16px;
+    width: 50px;
+    height: 50px;
+  }
+  
+  .create-group-fab svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Hide FAB when messages are visible on mobile */
+@media (max-width: 480px) {
+  .hidden .create-group-fab {
+    display: none;
+  }
+}
+
+/* Styles for the large create group button */
+.create-group-button-container {
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  border-top: 1px solid var(--yappin-border);
+}
+
+.large-create-group-button {
+  background-color: var(--yappin-primary);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.large-create-group-button:hover {
+  background-color: var(--yappin-secondary);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+.large-create-group-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.large-create-group-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Simple + FAB for creating groups */
+.create-group-simple-fab {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--yappin-primary);
+  color: white;
+  border: none;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.create-group-simple-fab:hover {
+  transform: rotate(90deg);
+  background-color: var(--yappin-secondary);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.create-group-simple-fab svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Center the text in the no-chat-selected section */
+.no-chat-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 20px;
+}
+
+.no-chat-selected p {
+  margin: 5px 0;
+  text-align: center;
+  color: var(--yappin-secondary-text);
+  font-size: 16px;
+}
+
+/* Blue New Chat button */
+.chat-action-button.blue-button {
+  background-color: var(--yappin-primary);
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.chat-action-button.blue-button:hover {
+  background-color: var(--yappin-secondary);
+}
+
+.chat-action-button.blue-button svg {
+  fill: white;
 }

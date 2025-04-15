@@ -14,6 +14,28 @@ const App = () => {
     const theme = localStorage.getItem('theme') || 'dark';
     localStorage.setItem('theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
+    
+    // Fix for mobile viewport height
+    const setAppHeight = () => {
+      const doc = document.documentElement;
+      doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+    
+    // Set initial height
+    setAppHeight();
+    
+    // Update height on resize
+    window.addEventListener('resize', setAppHeight);
+    
+    // Update height on orientation change
+    window.addEventListener('orientationchange', () => {
+      setTimeout(setAppHeight, 100);
+    });
+    
+    return () => {
+      window.removeEventListener('resize', setAppHeight);
+      window.removeEventListener('orientationchange', setAppHeight);
+    };
   }, []);
 
   return (
