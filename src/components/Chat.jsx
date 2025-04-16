@@ -5,6 +5,119 @@ import { collection, addDoc, query, orderBy, onSnapshot, doc, getDoc, setDoc, wh
 import { signOut } from 'firebase/auth';
 import CreateGroup from './CreateGroup';
 
+// Add guest warning styles at the top for immediate loading
+const warningStyles = document.createElement('style');
+warningStyles.textContent = `
+  .guest-warning-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999 !important; /* Max z-index */
+    animation: fadeIn 0.6s ease;
+  }
+
+  .guest-warning-content {
+    background-color: var(--background-primary);
+    border-radius: 12px;
+    padding: 32px;
+    max-width: 550px;
+    width: 95%;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    animation: slideUp 0.8s ease;
+    border: 3px solid var(--warning-color, orange);
+  }
+
+  .warning-icon {
+    margin: 0 auto 20px;
+    color: var(--warning-color, #ff9800);
+    display: flex;
+    justify-content: center;
+  }
+
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+
+  .guest-warning-content h2 {
+    margin: 0 0 20px;
+    color: var(--warning-color, #ff9800);
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .highlight-text {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+
+  .warning-box {
+    background-color: rgba(255, 152, 0, 0.1);
+    border: 1px solid var(--warning-color, #ff9800);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+
+  .warning-box p {
+    margin: 0;
+    color: var(--warning-color, #ff9800);
+    font-size: 16px;
+  }
+
+  .continue-button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--primary-color, #4f46e5);
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .continue-button:hover:not(:disabled) {
+    background-color: var(--primary-hover, #4338ca);
+    transform: translateY(-1px);
+  }
+
+  .continue-button.disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .guest-warning-content p {
+    margin: 10px 0;
+    line-height: 1.5;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes fadeIn {
+    0% { opacity: 0; }
+    70% { opacity: 0.7; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    0% { transform: translateY(40px); opacity: 0; }
+    60% { transform: translateY(10px); opacity: 0.8; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+`;
+document.head.appendChild(warningStyles);
+
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -31,6 +144,9 @@ const Chat = () => {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [activeMenu, setActiveMenu] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [showGuestWarning, setShowGuestWarning] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [countdownTime, setCountdownTime] = useState(3);
 
   const generateShortId = async () => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -75,6 +191,17 @@ const Chat = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           console.log('User data loaded:', userData); // Debug log
+          setUserData(userData);
+          
+          // ALWAYS show warning for guest users - simpler and more reliable
+          if (userData.isGuest) {
+            console.log('GUEST USER DETECTED - showing warning popup');
+            // Force a slight delay to ensure UI is ready
+            setTimeout(() => {
+              setShowGuestWarning(true);
+            }, 500);
+          }
+          
           if (!userData.shortId) {
             // If shortId doesn't exist, generate one
             const shortId = await generateShortId();
@@ -238,6 +365,22 @@ const Chat = () => {
     setIsConnecting(true);
 
     try {
+      // Check if user is a guest and already has 5 connections
+      if (auth.currentUser) {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const userData = userDocSnap.data();
+        
+        if (userData.isGuest && userData.connections) {
+          const connectionCount = Object.keys(userData.connections).length;
+          if (connectionCount >= (userData.maxConnections || 5)) {
+            setError("As a guest user, you can only chat with 5 people. Please sign in to chat with more.");
+            setIsConnecting(false);
+            return;
+          }
+        }
+      }
+      
       const recipientUid = await verifyRecipient(trimmedId);
       if (!recipientUid) {
         setError("User ID not found! Please check the ID and try again.");
@@ -1001,6 +1144,30 @@ const Chat = () => {
           </button>
         </div>
       )}
+
+      {showGuestWarning && (
+        <div className="guest-warning-popup">
+          <div className="guest-warning-content">
+            <div className="warning-icon pulse">
+              <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor">
+                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              </svg>
+            </div>
+            <h2>⚠️ Guest Account Limitations ⚠️</h2>
+            <p className="highlight-text">You're signed in as <strong>{userData?.displayName}</strong>.</p>
+            <div className="warning-box">
+              <p>Please note that as a guest user, you can <strong>only chat with a maximum of 5 people</strong> (including both direct messages and groups).</p>
+            </div>
+            <p>To enjoy unlimited chats, please consider signing in with Google or GitHub.</p>
+            <DelayButton 
+              className="continue-button"
+              onClick={() => setShowGuestWarning(false)}
+              delay={3000}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="chat-header">
         <h2>Chats</h2>
         <div className="user-id">
@@ -1193,7 +1360,7 @@ const Chat = () => {
               <div className="empty-chat">
                 <div className="empty-chat-illustration">
                   <svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 14H5.17L4 17.17V4h16v12zm-2-7H6v2h12V9zm0-3H6v2h12V6z"/>
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
                   </svg>
                 </div>
                 <p>Welcome! Start your first conversation</p>
@@ -1354,6 +1521,44 @@ const Chat = () => {
         </div>
       )}
     </div>
+  );
+};
+
+const DelayButton = ({ onClick, className, delay = 3000 }) => {
+  const [enabled, setEnabled] = useState(false);
+  const [countdown, setCountdown] = useState(Math.ceil(delay/1000));
+  
+  useEffect(() => {
+    const enableTimer = setTimeout(() => {
+      setEnabled(true);
+    }, delay);
+    
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => {
+      clearTimeout(enableTimer);
+      clearInterval(countdownInterval);
+    };
+  }, [delay]);
+  
+  return (
+    <button 
+      className={`${className} ${!enabled ? 'disabled' : ''}`}
+      onClick={onClick}
+      disabled={!enabled}
+    >
+      {!enabled 
+        ? `Please wait ${countdown} seconds...` 
+        : 'I Understand, Continue to Chat'}
+    </button>
   );
 };
 

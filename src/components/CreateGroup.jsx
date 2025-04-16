@@ -144,6 +144,28 @@ const CreateGroup = ({ onClose, onSuccess, userConnections = [] }) => {
       setIsCreating(true);
       setError('');
 
+      // Check if user is a guest and already has 5 connections
+      if (auth.currentUser) {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          
+          if (userData.isGuest) {
+            const connections = userData.connections || {};
+            const groups = userData.groups || {};
+            const totalConnectionCount = Object.keys(connections).length + Object.keys(groups).length;
+            
+            if (totalConnectionCount >= (userData.maxConnections || 5)) {
+              setError("As a guest user, you are limited to 5 total connections (direct chats + groups). Please sign in to create more groups.");
+              setIsCreating(false);
+              return;
+            }
+          }
+        }
+      }
+
       // Create a new group in Firestore
       const groupData = {
         name: groupName.trim(),

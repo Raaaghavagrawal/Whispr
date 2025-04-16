@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, TwitterAuthProvider, GithubAuthProvider } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
 // Debug log to check environment variables
@@ -41,4 +41,11 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-export { auth, db, storage, googleProvider };
+// Initialize Twitter Auth Provider
+const twitterProvider = new TwitterAuthProvider();
+
+// Initialize GitHub Auth Provider
+const githubProvider = new GithubAuthProvider();
+githubProvider.addScope('user');
+
+export { auth, db, storage, googleProvider, twitterProvider, githubProvider };

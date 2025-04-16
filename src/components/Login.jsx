@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, TwitterAuthProvider, GithubAuthProvider, signInAnonymously } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, runTransaction } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, db, googleProvider, twitterProvider, githubProvider } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -133,7 +133,7 @@ const Login = () => {
     }
   };
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     if (!isOnline) {
       setError('You are offline. Please check your internet connection.');
       return;
@@ -141,25 +141,115 @@ const Login = () => {
 
     try {
       console.log('Starting Google sign-in process...');
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, googleProvider);
       console.log('Google sign-in successful, setting up user...');
       await setupUser(result.user);
     } catch (error) {
       console.error('Login error:', error);
-      let errorMessage = 'Failed to sign in. Please try again.';
+      handleAuthError(error);
+    }
+  };
 
-      if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-in was cancelled. Please try again.';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Sign-in popup was blocked. Please allow popups for this site.';
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'Multiple sign-in attempts detected. Please try again.';
-      }
+  const handleTwitterLogin = async () => {
+    if (!isOnline) {
+      setError('You are offline. Please check your internet connection.');
+      return;
+    }
 
-      setError(errorMessage);
+    try {
+      console.log('Starting Twitter sign-in process...');
+      const result = await signInWithPopup(auth, twitterProvider);
+      console.log('Twitter sign-in successful, setting up user...');
+      await setupUser(result.user);
+    } catch (error) {
+      console.error('Twitter login error:', error);
+      handleAuthError(error);
+    }
+  };
+
+  const handleGithubLogin = async () => {
+    if (!isOnline) {
+      setError('You are offline. Please check your internet connection.');
+      return;
+    }
+
+    try {
+      console.log('Starting GitHub sign-in process...');
+      const result = await signInWithPopup(auth, githubProvider);
+      console.log('GitHub sign-in successful, setting up user...');
+      await setupUser(result.user);
+    } catch (error) {
+      console.error('GitHub login error:', error);
+      handleAuthError(error);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    if (!isOnline) {
+      setError('You are offline. Please check your internet connection.');
+      return;
+    }
+
+    try {
+      console.log('Starting Guest sign-in process...');
+      setIsProcessingAuth(true);
+      
+      // Sign in anonymously with Firebase
+      const result = await signInAnonymously(auth);
+      const guestUser = result.user;
+      
+      // Generate a random guest name
+      const guestName = `Guest${Math.floor(1000 + Math.random() * 9000)}`;
+      
+      // Create a guest user profile with 5-chat limitation
+      const shortId = await generateShortId();
+      const timestamp = new Date().toISOString();
+      const userData = {
+        uid: guestUser.uid,
+        email: null,
+        shortId: shortId,
+        displayName: guestName,
+        photoURL: null,
+        createdAt: timestamp,
+        lastSeen: timestamp,
+        online: true,
+        isGuest: true,
+        maxConnections: 5,
+        connections: {},
+        // Flag to show the warning on first login
+        showGuestWarning: true
+      };
+
+      // Save to Firestore
+      const userRef = doc(db, 'users', guestUser.uid);
+      await setDoc(userRef, userData);
+      console.log('Created new guest user:', guestUser.uid);
+      
+      // Navigate directly to chat
+      navigate('/chat', { replace: true });
+    } catch (error) {
+      console.error('Guest login error:', error);
+      handleAuthError(error);
+    } finally {
       setIsProcessingAuth(false);
     }
+  };
+
+  const handleAuthError = (error) => {
+    let errorMessage = 'Failed to sign in. Please try again.';
+
+    if (error.code === 'auth/popup-closed-by-user') {
+      errorMessage = 'Sign-in was cancelled. Please try again.';
+    } else if (error.code === 'auth/popup-blocked') {
+      errorMessage = 'Sign-in popup was blocked. Please allow popups for this site.';
+    } else if (error.code === 'auth/cancelled-popup-request') {
+      errorMessage = 'Multiple sign-in attempts detected. Please try again.';
+    } else if (error.code === 'auth/account-exists-with-different-credential') {
+      errorMessage = 'An account already exists with the same email address but different sign-in credentials. Sign in using your original provider.';
+    }
+
+    setError(errorMessage);
+    setIsProcessingAuth(false);
   };
 
   return (
@@ -171,15 +261,42 @@ const Login = () => {
           </svg>
         </div>
         <h1>Welcome to Yappin</h1>
-        <p>Sign in with Google to start chatting</p>
-        <button 
-          className="google-signin-button"
-          onClick={handleLogin}
-          disabled={!isOnline}
-        >
-          <img src="https://www.google.com/favicon.ico" alt="Google" />
-          Continue with Google
-        </button>
+        <p>Sign in to start chatting</p>
+        
+        <div className="auth-buttons">
+          <button 
+            className="google-signin-button auth-button"
+            onClick={handleGoogleLogin}
+            disabled={!isOnline}
+          >
+            <img src="https://www.google.com/favicon.ico" alt="Google" />
+            Continue with Google
+          </button>
+          
+          <button 
+            className="google-signin-button auth-button"
+            onClick={handleGithubLogin}
+            disabled={!isOnline}
+          >
+            <img src="https://github.com/favicon.ico" alt="GitHub" />
+            Continue with GitHub
+          </button>
+          
+          <div className="separator">
+            <span>or</span>
+          </div>
+          
+          <button 
+            className="google-signin-button auth-button"
+            onClick={handleGuestLogin}
+            disabled={!isOnline}
+          >
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNyAxMWE1IDUgMCAwIDEtMTAgMCI+PC9wYXRoPjxjaXJjbGUgY3g9IjEyIiBjeT0iNyIgcj0iNCIgZmlsbD0iY3VycmVudENvbG9yIiBzdHJva2U9Im5vbmUiPjwvY2lyY2xlPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgc3Ryb2tlPSJub25lIiBkPSJNNiAyMXYtMmE0IDQgMCAwIDEgNC00aDRhNCA0IDAgMCAxIDQgNHYyIj48L3BhdGg+PC9zdmc+" alt="Guest" />
+            Continue as Guest
+          </button>
+          <div className="guest-limit-note">Limited to 5 chats</div>
+        </div>
+        
         {error && (
           <div className="error-message">
             <p>{error}</p>
@@ -195,5 +312,38 @@ const Login = () => {
     </div>
   );
 };
+
+// Add CSS styles for the login component
+const styles = document.createElement('style');
+styles.textContent = `
+  .separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 15px 0;
+    color: var(--text-muted);
+  }
+  
+  .separator::before,
+  .separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .separator span {
+    padding: 0 10px;
+    font-size: 14px;
+  }
+  
+  .guest-limit-note {
+    font-size: 12px;
+    color: #e53935;
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+`;
+document.head.appendChild(styles);
 
 export default Login; 
