@@ -6,7 +6,7 @@
 
 <h2>🚀 Demo</h2>
 
-[https://yappin-free.vercel.app/](https://yappin-free.vercel.app/)
+[https://yappin-free.vercel.app/](https://yappin-free.vercel.app)
 
 <h1 align="center">☁️ Project Screenshots:</h1>
 <h2 align="center">Sign in Page</h2>
